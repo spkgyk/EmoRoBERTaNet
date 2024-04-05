@@ -54,8 +54,8 @@ eval_dataset = tokenized_datasets["validation"].shuffle(seed=42)
 training_args = TrainingArguments(
     output_dir=f"./results/{model_name}",
     num_train_epochs=3,
-    per_device_train_batch_size=4,
-    per_device_eval_batch_size=4,
+    per_device_train_batch_size=8,
+    per_device_eval_batch_size=8,
     warmup_steps=500,
     weight_decay=0.001,
     logging_dir=f"./logs/{model_name}",
