@@ -7,11 +7,11 @@ dependencies:
   - pip
   - black
   - python
-  - pytorch 
+  - pytorch
   - datasets
   - accelerate
-  - torchaudio 
-  - torchvision 
+  - torchaudio
+  - torchvision
   - scikit-learn
   - transformers
   - huggingface_hub

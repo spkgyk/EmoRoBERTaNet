@@ -1,21 +1,47 @@
+import argparse
 import numpy as np
 
 from datasets import load_dataset
-from sklearn.metrics import accuracy_score, f1_score
-from transformers import Trainer, TrainingArguments, AutoTokenizer, DataCollatorWithPadding, AutoModelForSequenceClassification
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+from transformers import (
+    Trainer,
+    AutoTokenizer,
+    EvalPrediction,
+    TrainingArguments,
+    DataCollatorWithPadding,
+    AutoModelForSequenceClassification,
+)
+
+parser = argparse.ArgumentParser(description="Process model name.")
+parser.add_argument("--model_name", type=str, help="The name of the model to use", default="distilbert/distilbert-base-uncased")
+args = parser.parse_args()
+model_name = args.model_name
 
 dataset = load_dataset("emotion", trust_remote_code=True)
-tokenizer = AutoTokenizer.from_pretrained("roberta-base")
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=6)
 
 
 def tokenize_function(examples):
     return tokenizer(examples["text"], padding=False, truncation=True, max_length=512)
 
 
-def compute_metrics(eval_pred):
-    logits, labels = eval_pred
+def compute_metrics(eval_pred: EvalPrediction):
+    logits = eval_pred.predictions
+    labels = eval_pred.label_ids
+    logits = logits[0] if type(logits) == tuple else logits
+
     predictions = np.argmax(logits, axis=-1)
-    return {"accuracy": accuracy_score(labels, predictions), "f1": f1_score(labels, predictions, average="weighted")}
+
+    precision, recall, f1, _ = precision_recall_fscore_support(labels, predictions, average="weighted")
+    accuracy = accuracy_score(labels, predictions)
+
+    return {
+        "accuracy": accuracy,
+        "F1_score": f1,
+        "precision": precision,
+        "recall": recall,
+    }
 
 
 tokenized_datasets = dataset.map(tokenize_function, batched=True)
@@ -25,17 +51,14 @@ train_dataset = tokenized_datasets["train"].shuffle(seed=42)
 eval_dataset = tokenized_datasets["validation"].shuffle(seed=42)
 
 
-model = AutoModelForSequenceClassification.from_pretrained("roberta-base", num_labels=6)
-
-
 training_args = TrainingArguments(
-    output_dir="./results",
+    output_dir=f"./results/{model_name}",
     num_train_epochs=3,
-    per_device_train_batch_size=32,
-    per_device_eval_batch_size=32,
+    per_device_train_batch_size=4,
+    per_device_eval_batch_size=4,
     warmup_steps=500,
-    weight_decay=0.01,
-    logging_dir="./logs",
+    weight_decay=0.001,
+    logging_dir=f"./logs/{model_name}",
     logging_steps=25,
     evaluation_strategy="epoch",
     save_strategy="epoch",
